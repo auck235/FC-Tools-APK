@@ -17,6 +17,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.FrameLayout;
+import android.widget.Toast;
 import android.app.Dialog;
 import android.content.SharedPreferences;
 
@@ -63,7 +64,7 @@ public final class MainActivity extends Activity {
                     }
                     page.evaluateJavascript("(()=>{if(window.__fcToolsOpenPatched)return;window.__fcToolsOpenPatched=true;window.open=(url)=>{if(url)location.href=url;return window}})()", null);
                     page.evaluateJavascript(loader, null);
-                    fillSavedLogin(false);
+                    scheduleSavedLoginFill();
                 } catch (Exception ignored) {}
             }
         });
@@ -145,14 +146,17 @@ public final class MainActivity extends Activity {
         EditText password = input("EA password");
         password.setInputType(0x81);
         String[] saved = credentialStore.read();
-        if (saved != null) email.setText(saved[0]);
+        if (saved != null) {
+            email.setText(saved[0]);
+            password.setText(saved[1]);
+        }
         panel.addView(email);
         panel.addView(password);
         panel.addView(text("Saved fields fill automatically. Sign In is never pressed automatically.", 12, Color.LTGRAY, false));
         Button save = button("Save securely", MINT);
         save.setOnClickListener(v -> {
             try { credentialStore.save(email.getText().toString().trim(), password.getText().toString()); password.setText(""); fillSavedLogin(true); dialog.dismiss(); }
-            catch (Exception ignored) {}
+            catch (Exception ignored) { Toast.makeText(this, "שמירת פרטי ההתחברות נכשלה", Toast.LENGTH_LONG).show(); }
         });
         panel.addView(save);
         Button remove = button("Remove saved login", Color.rgb(80, 35, 45));
@@ -168,11 +172,17 @@ public final class MainActivity extends Activity {
         if (dialog.getWindow() != null) dialog.getWindow().setLayout((int) (getResources().getDisplayMetrics().widthPixels * 0.86), WindowManager.LayoutParams.WRAP_CONTENT);
     }
 
+    private void scheduleSavedLoginFill() {
+        for (int attempt = 0; attempt < 12; attempt++) {
+            webView.postDelayed(() -> fillSavedLogin(false), attempt * 500L);
+        }
+    }
+
     private void fillSavedLogin(boolean notify) {
         String[] saved = credentialStore.read(); if (saved == null) return;
         try {
             String email = JSONObject.quote(saved[0]); String password = JSONObject.quote(saved[1]);
-            String script = "(()=>{const e=" + email + ",p=" + password + ";const set=(x,v)=>{if(!x||x.value)return;const s=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;s?s.call(x,v):x.value=v;['input','change','blur'].forEach(n=>x.dispatchEvent(new Event(n,{bubbles:true})))};set(document.querySelector('input[type=email],input[name=email],input[autocomplete=username]'),e);set(document.querySelector('input[type=password],input[name=password],input[autocomplete=current-password]'),p)})()";
+            String script = "(()=>{const e=" + email + ",p=" + password + ";const set=(x,v)=>{if(!x||x.value)return;const s=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;s?s.call(x,v):x.value=v;['input','change','blur'].forEach(n=>x.dispatchEvent(new Event(n,{bubbles:true})))};set(document.querySelector('input[type=email],input[name=email],input[autocomplete=username],input[name=username],form input[type=text]'),e);set(document.querySelector('input[type=password],input[name=password],input[autocomplete=current-password]'),p)})()";
             webView.evaluateJavascript(script, null);
         } catch (Exception ignored) {}
     }
