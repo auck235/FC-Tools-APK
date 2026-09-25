@@ -1,0 +1,18 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'gg.fodder.fctools'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'gg.fodder.fctools'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '2.0.0'
+    }
+
+    buildTypes {
+        release { minifyEnabled false }
+    }
+}

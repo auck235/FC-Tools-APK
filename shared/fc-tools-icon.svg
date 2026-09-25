@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#07131a"/><stop offset="1" stop-color="#0d2d28"/></linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8affd5"/><stop offset="0.5" stop-color="#18dc98"/><stop offset="1" stop-color="#00a978"/></linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="14" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+  <circle cx="512" cy="512" r="350" fill="#04100f" stroke="#123b34" stroke-width="14"/>
+  <path d="M512 164 814 338v348L512 860 210 686V338Z" fill="none" stroke="#19e3a0" stroke-width="24" opacity=".45" filter="url(#glow)"/>
+  <path d="M512 180 790 340v336L512 836 234 676V340Z" fill="none" stroke="url(#green)" stroke-width="22"/>
+  <path d="M286 372h354l-42 78H418l-14 28h148l-42 76H368l-16 30h164l-44 80H244l42-78Z" fill="url(#green)"/>
+  <path d="M626 372h112l-66 292H554l24-111h-70l38-76h52Z" fill="#c0ffe9" opacity=".95"/>
+  <circle cx="512" cy="512" r="390" fill="none" stroke="#50ffc0" stroke-width="3" opacity=".22"/>
+</svg>
