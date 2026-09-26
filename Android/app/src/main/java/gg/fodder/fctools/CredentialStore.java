@@ -19,6 +19,7 @@ final class CredentialStore {
     private static final String KEY_ALIAS = "fc-tools-login-key";
     private static final String PREFS = "fc_tools_secure";
     private static final String VALUE = "credentials";
+    private static final String FALLBACK_VALUE = "credentials_private_fallback";
     private final Context context;
 
     CredentialStore(Context context) { this.context = context.getApplicationContext(); }
@@ -26,11 +27,20 @@ final class CredentialStore {
     void save(String email, String password) throws Exception {
         try {
             saveWithKey(email, password);
+            preferences().edit().remove(FALLBACK_VALUE).apply();
         } catch (Exception firstFailure) {
-            // A stale or corrupted Android Keystore entry can survive an app update.
-            // Remove only the encryption key and retry; the saved value is overwritten.
-            deleteKeyIfPresent();
-            saveWithKey(email, password);
+            try {
+                // A stale or corrupted Android Keystore entry can survive an app update.
+                // Remove only the encryption key and retry; the saved value is overwritten.
+                deleteKeyIfPresent();
+                saveWithKey(email, password);
+                preferences().edit().remove(FALLBACK_VALUE).apply();
+            } catch (Exception secondFailure) {
+                // Keep the credentials in the app's private storage if this device rejects
+                // Android Keystore encryption. Other regular apps cannot read this storage.
+                String payload = Base64.encodeToString((email + "\n" + password).getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
+                preferences().edit().remove(VALUE).putString(FALLBACK_VALUE, payload).apply();
+            }
         }
     }
 
@@ -47,9 +57,9 @@ final class CredentialStore {
     }
 
     String[] read() {
-        try {
-            String encoded = preferences().getString(VALUE, null);
-            if (encoded == null) return null;
+        String encoded = preferences().getString(VALUE, null);
+        if (encoded != null) {
+            try {
             byte[] payload = Base64.decode(encoded, Base64.NO_WRAP);
             byte[] iv = new byte[12];
             byte[] encrypted = new byte[payload.length - iv.length];
@@ -59,10 +69,17 @@ final class CredentialStore {
             cipher.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(128, iv));
             String[] values = new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8).split("\n", 2);
             return values.length == 2 ? values : null;
+            } catch (Exception ignored) { /* Try the private-storage fallback below. */ }
+        }
+        try {
+            String fallback = preferences().getString(FALLBACK_VALUE, null);
+            if (fallback == null) return null;
+            String[] values = new String(Base64.decode(fallback, Base64.NO_WRAP), StandardCharsets.UTF_8).split("\n", 2);
+            return values.length == 2 ? values : null;
         } catch (Exception ignored) { return null; }
     }
 
-    void clear() { preferences().edit().remove(VALUE).apply(); }
+    void clear() { preferences().edit().remove(VALUE).remove(FALLBACK_VALUE).apply(); }
 
     private SharedPreferences preferences() { return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
 
