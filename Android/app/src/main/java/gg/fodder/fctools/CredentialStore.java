@@ -24,6 +24,17 @@ final class CredentialStore {
     CredentialStore(Context context) { this.context = context.getApplicationContext(); }
 
     void save(String email, String password) throws Exception {
+        try {
+            saveWithKey(email, password);
+        } catch (Exception firstFailure) {
+            // A stale or corrupted Android Keystore entry can survive an app update.
+            // Remove only the encryption key and retry; the saved value is overwritten.
+            deleteKeyIfPresent();
+            saveWithKey(email, password);
+        }
+    }
+
+    private void saveWithKey(String email, String password) throws Exception {
         byte[] iv = new byte[12];
         new SecureRandom().nextBytes(iv);
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
@@ -58,7 +69,11 @@ final class CredentialStore {
     private SecretKey key() throws Exception {
         KeyStore store = KeyStore.getInstance("AndroidKeyStore");
         store.load(null);
-        if (store.containsAlias(KEY_ALIAS)) return ((KeyStore.SecretKeyEntry) store.getEntry(KEY_ALIAS, null)).getSecretKey();
+        if (store.containsAlias(KEY_ALIAS)) {
+            java.security.Key existing = store.getKey(KEY_ALIAS, null);
+            if (existing instanceof SecretKey) return (SecretKey) existing;
+            store.deleteEntry(KEY_ALIAS);
+        }
         KeyGenerator generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
         generator.init(new KeyGenParameterSpec.Builder(KEY_ALIAS, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
@@ -66,5 +81,11 @@ final class CredentialStore {
                 .setUserAuthenticationRequired(false)
                 .build());
         return generator.generateKey();
+    }
+
+    private void deleteKeyIfPresent() throws Exception {
+        KeyStore store = KeyStore.getInstance("AndroidKeyStore");
+        store.load(null);
+        if (store.containsAlias(KEY_ALIAS)) store.deleteEntry(KEY_ALIAS);
     }
 }
